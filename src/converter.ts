@@ -17,7 +17,9 @@ export class JsToGenExprConverter {
         }> = [];
 
         try {
-            const bodyAst = acorn.parse(bodyText, {
+            // Wrap the body text in a function to make it parseable
+            const wrappedCode = `function wrapper() {${bodyText}}`;
+            const bodyAst = acorn.parse(wrappedCode, {
                 ecmaVersion: 2020,
                 sourceType: 'script'
             });
@@ -26,19 +28,23 @@ export class JsToGenExprConverter {
                 ReturnStatement: (returnNode: any) => {
                     if (returnNode.argument?.type === 'ArrayExpression') {
                         const elements = returnNode.argument.elements.map((elem: any) =>
-                            bodyText.slice(elem.start, elem.end)
+                            // Adjust slice indices to account for the wrapper function
+                            bodyText.slice(
+                                elem.start - 'function wrapper() {'.length,
+                                elem.end - 'function wrapper() {'.length
+                            )
                         ).join(', ');
 
                         replacements.push({
-                            start: functionBodyStart + returnNode.start,
-                            end: functionBodyStart + returnNode.end,
+                            start: functionBodyStart + returnNode.start - 'function wrapper() {'.length,
+                            end: functionBodyStart + returnNode.end - 'function wrapper() {'.length,
                             text: `return ${elements}`
                         });
                     }
                 }
             });
         } catch (e) {
-            console.warn('Failed to parse function body, skipping return statement conversion');
+            console.warn('Failed to parse function body:', e);
         }
 
         return replacements;
