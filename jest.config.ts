@@ -5,12 +5,10 @@ export default {
     testMatch: ['**/*.test.ts'],
     moduleFileExtensions: ['ts', 'js'],
     transform: {
-        '^.+\\.ts$': 'ts-jest',
-    },
-    globals: {
-        'ts-jest': {
-            tsconfig: 'tsconfig.json',
-        },
+        '^.+\\.ts$': ['ts-jest', {
+            // ts-jest configuration goes here
+            tsconfig: 'tsconfig.json'
+        }]
     },
     collectCoverage: true,
     coverageDirectory: 'coverage',
