@@ -2,12 +2,8 @@ import * as acorn from 'acorn';
 import * as walk from 'acorn-walk';
 
 export class JsToGenExprConverter {
-    /**
-     * Processes return statements in a function body, converting array returns to multiple values
-     */
     private processReturnStatements(bodyText: string): string {
         try {
-            // Wrap the body text in a function to make it parseable
             const wrappedCode = `function wrapper() {${bodyText}}`;
             const bodyAst = acorn.parse(wrappedCode, {
                 ecmaVersion: 2020,
@@ -30,10 +26,17 @@ export class JsToGenExprConverter {
                             )
                         ).join(', ');
 
+                        // Check if the original return statement ended with a semicolon
+                        const originalText = bodyText.slice(
+                            returnNode.start - 'function wrapper() {'.length,
+                            returnNode.end - 'function wrapper() {'.length
+                        );
+                        const hasSemicolon = originalText.endsWith(';');
+
                         replacements.push({
                             start: returnNode.start - 'function wrapper() {'.length,
                             end: returnNode.end - 'function wrapper() {'.length,
-                            text: `return ${elements}`
+                            text: `return ${elements}${hasSemicolon ? ';' : ''}`
                         });
                     }
                 }
