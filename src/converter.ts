@@ -3,81 +3,74 @@ import * as walk from 'acorn-walk';
 
 export class JsToGenExprConverter {
     /**
-     * Converts JavaScript function declarations to GenExpr syntax
-     * @param code JavaScript source code
-     * @returns Converted code with GenExpr function syntax
+     * Processes return statements in a function body, converting array returns to multiple values
      */
-    public convert(code: string): string {
-        // Parse the JavaScript code into an AST
-        const ast = acorn.parse(code, {
-            ecmaVersion: 2020,
-            sourceType: 'module'
-        });
-
-        // Track the replacements we need to make
+    private processReturnStatements(bodyText: string, functionBodyStart: number): Array<{
+        start: number;
+        end: number;
+        text: string;
+    }> {
         const replacements: Array<{
             start: number;
             end: number;
             text: string;
         }> = [];
 
-        // Walk the AST and collect function declarations
+        try {
+            const bodyAst = acorn.parse(bodyText, {
+                ecmaVersion: 2020,
+                sourceType: 'script'
+            });
+
+            walk.simple(bodyAst, {
+                ReturnStatement: (returnNode: any) => {
+                    if (returnNode.argument?.type === 'ArrayExpression') {
+                        const elements = returnNode.argument.elements.map((elem: any) =>
+                            bodyText.slice(elem.start, elem.end)
+                        ).join(', ');
+
+                        replacements.push({
+                            start: functionBodyStart + returnNode.start,
+                            end: functionBodyStart + returnNode.end,
+                            text: `return ${elements}`
+                        });
+                    }
+                }
+            });
+        } catch (e) {
+            console.warn('Failed to parse function body, skipping return statement conversion');
+        }
+
+        return replacements;
+    }
+
+    public convert(code: string): string {
+        const ast = acorn.parse(code, {
+            ecmaVersion: 2020,
+            sourceType: 'module'
+        });
+
+        const replacements: Array<{
+            start: number;
+            end: number;
+            text: string;
+        }> = [];
+
         walk.simple(ast, {
             FunctionDeclaration: (node: any) => {
-                // Get function name
                 const functionName = node.id.name;
-
-                // Get parameters
                 const params = node.params.map((param: any) => param.name).join(', ');
+                const bodyText = code.slice(node.body.start + 1, node.body.end - 1);
 
-                // Find and process return statements in the function body
-                let bodyText = code.slice(node.body.start + 1, node.body.end - 1);
-
-                // Parse the function body to find return statements
-                try {
-                    const bodyAst = acorn.parse(bodyText, {
-                        ecmaVersion: 2020,
-                        sourceType: 'script'
-                    });
-
-                    walk.simple(bodyAst, {
-                        ReturnStatement: (returnNode: any) => {
-                            if (returnNode.argument?.type === 'ArrayExpression') {
-                                // Get the original return statement text
-                                const originalReturn = code.slice(
-                                    node.body.start + 1 + returnNode.start,
-                                    node.body.start + 1 + returnNode.end
-                                );
-
-                                // Get array elements as string
-                                const elements = returnNode.argument.elements.map((elem: any) =>
-                                    code.slice(
-                                        node.body.start + 1 + elem.start,
-                                        node.body.start + 1 + elem.end
-                                    )
-                                ).join(', ');
-
-                                // Create GenExpr multi-return
-                                const genExprReturn = `return ${elements}`;
-
-                                // Add to replacements
-                                replacements.push({
-                                    start: node.body.start + 1 + returnNode.start,
-                                    end: node.body.start + 1 + returnNode.end,
-                                    text: genExprReturn
-                                });
-                            }
-                        }
-                    });
-                } catch (e) {
-                    // If parsing body fails, continue with original body
-                    console.warn('Failed to parse function body, skipping return statement conversion');
-                }
+                // Process return statements in the function body
+                const returnReplacements = this.processReturnStatements(
+                    bodyText,
+                    node.body.start + 1
+                );
+                replacements.push(...returnReplacements);
 
                 // Create GenExpr style function
                 const genExprFunction = `${functionName}(${params}) {${bodyText}}`;
-
-                // Store the replacement
                 replacements.push({
                     start: node.start,
                     end: node.end,
@@ -86,7 +79,7 @@ export class JsToGenExprConverter {
             }
         });
 
-        // Apply replacements in reverse order to not affect other replacement positions
+        // Apply replacements in reverse order
         let result = code;
         for (const replacement of replacements.sort((a, b) => b.start - a.start)) {
             result =
