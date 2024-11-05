@@ -52,4 +52,94 @@ describe('JsToGenExprConverter', () => {
             expect(converter.convert(input)).toBe(expected);
         });
     });
+
+    describe('complex function bodies', () => {
+        it('should preserve code before array return', () => {
+            const input = `function process(x, y) { 
+                const sum = x + y;
+                const diff = x - y;
+                console.log('Processing...');
+                return [sum, diff]; 
+            }`;
+            const expected = `process(x, y) { 
+                const sum = x + y;
+                const diff = x - y;
+                console.log('Processing...');
+                return sum, diff; 
+            }`;
+            expect(converter.convert(input)).toBe(expected);
+        });
+
+        it('should preserve code after array return in conditional blocks', () => {
+            const input = `function analyze(data) {
+                if (data.length === 0) {
+                    console.log('Empty data');
+                    return [0, 0];
+                }
+                const result = process(data);
+                return [result.mean, result.stddev];
+            }`;
+            const expected = `analyze(data) {
+                if (data.length === 0) {
+                    console.log('Empty data');
+                    return 0, 0;
+                }
+                const result = process(data);
+                return result.mean, result.stddev;
+            }`;
+            expect(converter.convert(input)).toBe(expected);
+        });
+
+        it('should handle array returns with surrounding loop code', () => {
+            const input = `function calculatePairs(arr) {
+                let results = [];
+                for (let i = 0; i < arr.length; i++) {
+                    if (arr[i] < 0) {
+                        return [arr[i], i];
+                    }
+                    results.push(arr[i] * 2);
+                }
+                return [results[0], results[1]];
+            }`;
+            const expected = `calculatePairs(arr) {
+                let results = [];
+                for (let i = 0; i < arr.length; i++) {
+                    if (arr[i] < 0) {
+                        return arr[i], i;
+                    }
+                    results.push(arr[i] * 2);
+                }
+                return results[0], results[1];
+            }`;
+            expect(converter.convert(input)).toBe(expected);
+        });
+
+        it('should handle array returns with try-catch blocks', () => {
+            const input = `function safeDivide(x, y) {
+                try {
+                    if (y === 0) {
+                        throw new Error('Division by zero');
+                    }
+                    const result = x / y;
+                    return [result, true];
+                } catch (error) {
+                    console.error(error);
+                    return [0, false];
+                }
+            }`;
+            const expected = `safeDivide(x, y) {
+                try {
+                    if (y === 0) {
+                        throw new Error('Division by zero');
+                    }
+                    const result = x / y;
+                    return result, true;
+                } catch (error) {
+                    console.error(error);
+                    return 0, false;
+                }
+            }`;
+            expect(converter.convert(input)).toBe(expected);
+        });
+    });
 });
