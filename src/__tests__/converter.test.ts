@@ -91,3 +91,79 @@ formatted(x) {
         expect(converter.convert(input)).toBe(expected);
     });
 });
+
+describe('return statement handling', () => {
+    let converter: JsToGenExprConverter;
+
+    beforeEach(() => {
+        converter = new JsToGenExprConverter();
+    });
+
+    it('should preserve single value returns', () => {
+        const input = `
+function test(x) {
+    return x + 1;
+}`;
+        const expected = `
+test(x) {
+    return x + 1;
+}`;
+        expect(converter.convert(input)).toBe(expected);
+    });
+
+    it('should convert array returns to multiple values', () => {
+        const input = `
+function polarToCart(r, theta) {
+    return [r * Math.cos(theta), r * Math.sin(theta)];
+}`;
+        const expected = `
+polarToCart(r, theta) {
+    return r * Math.cos(theta), r * Math.sin(theta);
+}`;
+        expect(converter.convert(input)).toBe(expected);
+    });
+
+    it('should handle array returns with complex expressions', () => {
+        const input = `
+function complexCalc(x, y) {
+    return [x * 2 + y, x - y * 3, (x + y) / 2];
+}`;
+        const expected = `
+complexCalc(x, y) {
+    return x * 2 + y, x - y * 3, (x + y) / 2;
+}`;
+        expect(converter.convert(input)).toBe(expected);
+    });
+
+    it('should preserve non-array returns', () => {
+        const input = `
+function getValue() {
+    const arr = [1, 2, 3];
+    return arr[0];
+}`;
+        const expected = `
+getValue() {
+    const arr = [1, 2, 3];
+    return arr[0];
+}`;
+        expect(converter.convert(input)).toBe(expected);
+    });
+
+    it('should handle functions with multiple return statements', () => {
+        const input = `
+function test(x, y) {
+    if (x < 0) {
+        return [x, y];
+    }
+    return [x * 2, y * 2];
+}`;
+        const expected = `
+test(x, y) {
+    if (x < 0) {
+        return x, y;
+    }
+    return x * 2, y * 2;
+}`;
+        expect(converter.convert(input)).toBe(expected);
+    });
+});
