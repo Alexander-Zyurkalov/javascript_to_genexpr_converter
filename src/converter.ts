@@ -5,17 +5,7 @@ export class JsToGenExprConverter {
     /**
      * Processes return statements in a function body, converting array returns to multiple values
      */
-    private processReturnStatements(bodyText: string, functionBodyStart: number): Array<{
-        start: number;
-        end: number;
-        text: string;
-    }> {
-        const replacements: Array<{
-            start: number;
-            end: number;
-            text: string;
-        }> = [];
-
+    private processReturnStatements(bodyText: string): string {
         try {
             // Wrap the body text in a function to make it parseable
             const wrappedCode = `function wrapper() {${bodyText}}`;
@@ -24,11 +14,16 @@ export class JsToGenExprConverter {
                 sourceType: 'script'
             });
 
+            const replacements: Array<{
+                start: number;
+                end: number;
+                text: string;
+            }> = [];
+
             walk.simple(bodyAst, {
                 ReturnStatement: (returnNode: any) => {
                     if (returnNode.argument?.type === 'ArrayExpression') {
                         const elements = returnNode.argument.elements.map((elem: any) =>
-                            // Adjust slice indices to account for the wrapper function
                             bodyText.slice(
                                 elem.start - 'function wrapper() {'.length,
                                 elem.end - 'function wrapper() {'.length
@@ -36,18 +31,28 @@ export class JsToGenExprConverter {
                         ).join(', ');
 
                         replacements.push({
-                            start: functionBodyStart + returnNode.start - 'function wrapper() {'.length,
-                            end: functionBodyStart + returnNode.end - 'function wrapper() {'.length,
+                            start: returnNode.start - 'function wrapper() {'.length,
+                            end: returnNode.end - 'function wrapper() {'.length,
                             text: `return ${elements}`
                         });
                     }
                 }
             });
+
+            // Apply replacements in reverse order
+            let result = bodyText;
+            for (const replacement of replacements.sort((a, b) => b.start - a.start)) {
+                result =
+                    result.slice(0, replacement.start) +
+                    replacement.text +
+                    result.slice(replacement.end);
+            }
+
+            return result;
         } catch (e) {
             console.warn('Failed to parse function body:', e);
+            return bodyText;
         }
-
-        return replacements;
     }
 
     public convert(code: string): string {
@@ -66,17 +71,14 @@ export class JsToGenExprConverter {
             FunctionDeclaration: (node: any) => {
                 const functionName = node.id.name;
                 const params = node.params.map((param: any) => param.name).join(', ');
-                const bodyText = code.slice(node.body.start + 1, node.body.end - 1);
 
-                // Process return statements in the function body
-                const returnReplacements = this.processReturnStatements(
-                    bodyText,
-                    node.body.start + 1
-                );
-                replacements.push(...returnReplacements);
+                // Get original body text and process return statements
+                const originalBody = code.slice(node.body.start + 1, node.body.end - 1);
+                const processedBody = this.processReturnStatements(originalBody);
 
                 // Create GenExpr style function
-                const genExprFunction = `${functionName}(${params}) {${bodyText}}`;
+                const genExprFunction = `${functionName}(${params}) {${processedBody}}`;
+
                 replacements.push({
                     start: node.start,
                     end: node.end,
