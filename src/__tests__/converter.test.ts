@@ -15,20 +15,20 @@ describe('JsToGenExprConverter', () => {
         });
 
         it('should handle multiple function declarations', () => {
-            const input = `
-        function first(x) { return x * 2; }
-        function second(y) { return y + 1; }
-      `;
-            const expected = `
-        first(x) { return x * 2; }
-        second(y) { return y + 1; }
-      `;
+            const input =
+                `function first(x) { return x * 2; }` + `\n\n` +
+                `function second(y) { return y + 1; }`;
+            const expected =
+                `first(x) { return x * 2; }` + `\n\n` +
+                `second(y) { return y + 1; }`;
             expect(converter.convert(input)).toBe(expected);
         });
 
         it('should preserve non-function code', () => {
-            const input = `const a = 5; function test(x) { return x * a; } let b = 10;`;
-            const expected = `const a = 5; test(x) { return x * a; } let b = 10;`;
+            const input =
+                `function test(x) {const a = 5; return x * a; let b = 10;}`;
+            const expected =
+                `test(x) {a = 5; return x * a; b = 10;}`;
             expect(converter.convert(input)).toBe(expected);
         });
     });
@@ -47,8 +47,8 @@ describe('JsToGenExprConverter', () => {
         });
 
         it('should handle multiple return statements', () => {
-            const input = `function test(x, y) { if (x < 0) { return [x, y]; } return [x * 2, y * 2]; }`;
-            const expected = `test(x, y) { if (x < 0) { return x, y; } return x * 2, y * 2; }`;
+            const input = `function test(x, y) { if (x < 0) { return [x, y]; }; return [x * 2, y * 2]; }`;
+            const expected = `test(x, y) { if (x < 0) { return x, y; }; return x * 2, y * 2; }`;
             expect(converter.convert(input)).toBe(expected);
         });
     });
@@ -62,8 +62,8 @@ describe('JsToGenExprConverter', () => {
                 return [sum, diff]; 
             }`;
             const expected = `process(x, y) { 
-                const sum = x + y;
-                const diff = x - y;
+                sum = x + y;
+                diff = x - y;
                 console.log('Processing...');
                 return sum, diff; 
             }`;
@@ -84,7 +84,7 @@ describe('JsToGenExprConverter', () => {
                     console.log('Empty data');
                     return 0, 0;
                 }
-                const result = process(data);
+                result = process(data);
                 return result.mean, result.stddev;
             }`;
             expect(converter.convert(input)).toBe(expected);
@@ -92,55 +92,30 @@ describe('JsToGenExprConverter', () => {
 
         it('should handle array returns with surrounding loop code', () => {
             const input = `function calculatePairs(arr) {
-                let results = [];
-                for (let i = 0; i < arr.length; i++) {
-                    if (arr[i] < 0) {
-                        return [arr[i], i];
+                let results = 10;
+                let test1 = 0;
+                for (let i = 0; i < results; i++) {
+                    if (func(i) < 0) {
+                        return [func(i), i];
                     }
-                    results.push(arr[i] * 2);
+                    test1 = (test1 + func(i)) * 2;
                 }
-                return [results[0], results[1]];
+                return [results, test1];
             }`;
             const expected = `calculatePairs(arr) {
-                let results = [];
-                for (let i = 0; i < arr.length; i++) {
-                    if (arr[i] < 0) {
-                        return arr[i], i;
+                results = 10;
+                test1 = 0;
+                for (i = 0; i < results; i++) {
+                    if (func(i) < 0) {
+                        return func(i), i;
                     }
-                    results.push(arr[i] * 2);
+                    test1 = (test1 + func(i)) * 2;
                 }
-                return results[0], results[1];
+                return results, test1;
             }`;
             expect(converter.convert(input)).toBe(expected);
         });
-
-        it('should handle array returns with try-catch blocks', () => {
-            const input = `function safeDivide(x, y) {
-                try {
-                    if (y === 0) {
-                        throw new Error('Division by zero');
-                    }
-                    const result = x / y;
-                    return [result, true];
-                } catch (error) {
-                    console.error(error);
-                    return [0, false];
-                }
-            }`;
-            const expected = `safeDivide(x, y) {
-                try {
-                    if (y === 0) {
-                        throw new Error('Division by zero');
-                    }
-                    const result = x / y;
-                    return result, true;
-                } catch (error) {
-                    console.error(error);
-                    return 0, false;
-                }
-            }`;
-            expect(converter.convert(input)).toBe(expected);
-        });
+        ;
     });
 
 

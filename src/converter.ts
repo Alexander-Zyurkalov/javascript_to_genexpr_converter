@@ -114,7 +114,7 @@ export class JsToGenExprConverter {
 
     private processBody(body: string): string {
         // Remove let and var declarations
-        return body.replace(/\b(let|var)\s+/g, '');
+        return body.replace(/\b(let|var|const)\s+/g, '');
     }
 
     private getNodeValue(node: any): string {
