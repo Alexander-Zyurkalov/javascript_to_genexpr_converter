@@ -16,12 +16,7 @@ interface FunctionInfo {
 }
 
 export class JsToGenExprConverter {
-    // Keep existing convert method for backwards compatibility
     public convert(code: string): string {
-        return this.processBasicConversion(code);
-    }
-
-    public convertToGenExpr(code: string): string {
         const functions = this.parseFunctions(code);
         if (!functions.length) return '';
 

@@ -144,8 +144,8 @@ describe('JsToGenExprConverter', () => {
     });
 
 
-        describe('convertToGenExpr', () => {
-            it('should convert basic functions with main function', () => {
+        describe('more complex program with main function', () => {
+            it('should convert basic functions', () => {
                 const input =
                     `function add(x, y) { return x + y; }` + `\n` +
                     `function main(a, b) { return [add(a, b), a * b]; }`;
@@ -157,7 +157,7 @@ describe('JsToGenExprConverter', () => {
                     `\n` +
                     `out1 = add(a, b);` + `\n` +
                     `out2 = a * b;`;
-                expect(converter.convertToGenExpr(input).trim()).toBe(expected);
+                expect(converter.convert(input).trim()).toBe(expected);
             });
 
             it('should handle default parameters', () => {
@@ -171,7 +171,7 @@ describe('JsToGenExprConverter', () => {
                     `x = in1;` + `\n` +
                     `\n` +
                     `out1 = multiply(x, y);`;
-                expect(converter.convertToGenExpr(input).trim()).toBe(expected);
+                expect(converter.convert(input).trim()).toBe(expected);
             });
 
             it('should remove let/var declarations', () => {
@@ -197,7 +197,7 @@ describe('JsToGenExprConverter', () => {
                     `result = process(input);` + `\n` +
                     `out1 = result;` + `\n` +
                     `out2 = input;`;
-                expect(converter.convertToGenExpr(input).trim()).toBe(expected);
+                expect(converter.convert(input).trim()).toBe(expected);
             });
 
             it('should handle complex return expressions', () => {
@@ -218,7 +218,7 @@ describe('JsToGenExprConverter', () => {
                     `out1 = calc(a, b);` + `\n` +
                     `out2 = d;` + `\n` +
                     `out3 = a + b + c;`;
-                expect(converter.convertToGenExpr(input).trim()).toBe(expected);
+                expect(converter.convert(input).trim()).toBe(expected);
             });
 
             it('should handle single return value', () => {
@@ -230,7 +230,7 @@ describe('JsToGenExprConverter', () => {
                     `x = in1;` + `\n` +
                     `\n` +
                     `out1 = x * 2;`;
-                expect(converter.convertToGenExpr(input).trim()).toBe(expected);
+                expect(converter.convert(input).trim()).toBe(expected);
             });
 
         it('should handle multiple functions with complex interactions', () => {
@@ -263,7 +263,7 @@ describe('JsToGenExprConverter', () => {
                 `d = c * a * b;` + `\n` +
                 `out1 = function1(a, b, c);` + `\n` +
                 `out2 = d;`;
-            expect(converter.convertToGenExpr(input).trim()).toBe(expected);
+            expect(converter.convert(input).trim()).toBe(expected);
         });
     });
 });
