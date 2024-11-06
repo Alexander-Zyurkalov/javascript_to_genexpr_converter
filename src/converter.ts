@@ -159,33 +159,68 @@ export class JsToGenExprConverter {
 
         // Process function body
         const bodyAst = acorn.parse(`function wrapper() {${main.body}}`, {
-            ecmaVersion: 2020
+            ecmaVersion: 2020,
+            locations: true
         });
 
-        walk.simple(bodyAst, {
-            ReturnStatement: (node: any) => {
-                if (node.argument?.type === 'ArrayExpression') {
-                    const elements = node.argument.elements;
-                    elements.forEach((elem: any, index: number) => {
-                        const expr = main.body.slice(
-                            elem.start - 'function wrapper() {'.length,
-                            elem.end - 'function wrapper() {'.length
-                        );
-                        output += `out${index + 1} = ${expr};\n`;
-                    });
-                } else if (node.argument) {
-                    const expr = main.body.slice(
-                        node.argument.start - 'function wrapper() {'.length,
-                        node.argument.end - 'function wrapper() {'.length
-                    );
-                    output += `out1 = ${expr};\n`;
+        // Get all statements before return
+        const functionBody = (bodyAst as any).body[0].body;
+        const statements = functionBody.body;
+        let processedStatements = [];
+
+        // Process all statements except return
+        for (let i = 0; i < statements.length; i++) {
+            const stmt = statements[i];
+            if (stmt.type === 'ReturnStatement') continue;
+
+            if (stmt.type === 'VariableDeclaration') {
+                for (const decl of stmt.declarations) {
+                    const initCode = main.body.slice(
+                        decl.init.start - 'function wrapper() {'.length,
+                        decl.init.end - 'function wrapper() {'.length
+                    ).trim();
+                    processedStatements.push(`${decl.id.name} = ${initCode};`);
+                }
+            } else if (stmt.type === 'ExpressionStatement') {
+                const exprCode = main.body.slice(
+                    stmt.start - 'function wrapper() {'.length,
+                    stmt.end - 'function wrapper() {'.length
+                ).trim();
+                if (exprCode.endsWith(';')) {
+                    processedStatements.push(exprCode);
+                } else {
+                    processedStatements.push(`${exprCode};`);
                 }
             }
-        });
+        }
+
+        // Add processed statements if there are any
+        if (processedStatements.length > 0) {
+            output += processedStatements.join('\n') + '\n';
+        }
+
+        // Process return statement
+        const returnStmt = statements.find((stmt: { type: string; }) => stmt.type === 'ReturnStatement');
+        if (returnStmt) {
+            if (returnStmt.argument?.type === 'ArrayExpression') {
+                returnStmt.argument.elements.forEach((elem: any, index: number) => {
+                    const expr = main.body.slice(
+                        elem.start - 'function wrapper() {'.length,
+                        elem.end - 'function wrapper() {'.length
+                    );
+                    output += `out${index + 1} = ${expr};\n`;
+                });
+            } else if (returnStmt.argument) {
+                const expr = main.body.slice(
+                    returnStmt.argument.start - 'function wrapper() {'.length,
+                    returnStmt.argument.end - 'function wrapper() {'.length
+                );
+                output += `out1 = ${expr};\n`;
+            }
+        }
 
         return output;
     }
-
     private processReturnStatements(bodyText: string): string {
         try {
             const wrappedCode = `function wrapper() {${bodyText}}`;
