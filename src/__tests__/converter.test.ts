@@ -143,98 +143,127 @@ describe('JsToGenExprConverter', () => {
         });
     });
 
-    describe('convertToGenExpr', () => {
-        it('should convert basic functions with main function', () => {
-            const input = `
-                function add(x, y) { return x + y; }
-                function main(a, b) { return [add(a, b), a * b]; }
-            `;
+
+        describe('convertToGenExpr', () => {
+            it('should convert basic functions with main function', () => {
+                const input =
+                    `function add(x, y) { return x + y; }` + `\n` +
+                    `function main(a, b) { return [add(a, b), a * b]; }`;
+                const expected =
+                    `add(x, y) { return x + y; }` + `\n` +
+                    `\n` +
+                    `a = in1;` + `\n` +
+                    `b = in2;` + `\n` +
+                    `\n` +
+                    `out1 = add(a, b);` + `\n` +
+                    `out2 = a * b;`;
+                expect(converter.convertToGenExpr(input).trim()).toBe(expected);
+            });
+
+            it('should handle default parameters', () => {
+                const input =
+                    `function multiply(a, b=2) { return a * b; }` + `\n` +
+                    `function main(x, y=3) { return multiply(x, y); }`;
+                const expected =
+                    `multiply(a, b=2) { return a * b; }` + `\n` +
+                    `\n` +
+                    `Param y(3);` + `\n` +
+                    `x = in1;` + `\n` +
+                    `\n` +
+                    `out1 = multiply(x, y);`;
+                expect(converter.convertToGenExpr(input).trim()).toBe(expected);
+            });
+
+            it('should remove let/var declarations', () => {
+                const input =
+                    `function process(a) {` + `\n` +
+                    `    let x = a * 2;` + `\n` +
+                    `    var y = x + 1;` + `\n` +
+                    `    return x + y;` + `\n` +
+                    `}` + `\n` +
+                    `function main(input) {` + `\n` +
+                    `    let result = process(input);` + `\n` +
+                    `    return [result, input];` + `\n` +
+                    `}`;
+                const expected =
+                    `process(a) {` + `\n` +
+                    `    x = a * 2;` + `\n` +
+                    `    y = x + 1;` + `\n` +
+                    `    return x + y;` + `\n` +
+                    `}` + `\n` +
+                    `\n` +
+                    `input = in1;` + `\n` +
+                    `\n` +
+                    `result = process(input);` + `\n` +
+                    `out1 = result;` + `\n` +
+                    `out2 = input;`;
+                expect(converter.convertToGenExpr(input).trim()).toBe(expected);
+            });
+
+            it('should handle complex return expressions', () => {
+                const input =
+                    `function calc(x, y) { return x * y + 1; }` + `\n` +
+                    `function main(a, b, c=5) {` + `\n` +
+                    `    let d = c * a * b;` + `\n` +
+                    `    return [calc(a, b), d, a + b + c];` + `\n` +
+                    `}`;
+                const expected =
+                    `calc(x, y) { return x * y + 1; }` + `\n` +
+                    `\n` +
+                    `Param c(5);` + `\n` +
+                    `a = in1;` + `\n` +
+                    `b = in2;` + `\n` +
+                    `\n` +
+                    `d = c * a * b;` + `\n` +
+                    `out1 = calc(a, b);` + `\n` +
+                    `out2 = d;` + `\n` +
+                    `out3 = a + b + c;`;
+                expect(converter.convertToGenExpr(input).trim()).toBe(expected);
+            });
+
+            it('should handle single return value', () => {
+                const input =
+                    `function main(x) {` + `\n` +
+                    `    return x * 2;` + `\n` +
+                    `}`;
+                const expected =
+                    `x = in1;` + `\n` +
+                    `\n` +
+                    `out1 = x * 2;`;
+                expect(converter.convertToGenExpr(input).trim()).toBe(expected);
+            });
+
+        it('should handle multiple functions with complex interactions', () => {
+            const input =
+                `function function1(a, b, c=1) {` + `\n` +
+                `    let d = a + b + c;` + `\n` +
+                `    return function2(d, a, b);` + `\n` +
+                `}` + `\n` +
+                `function function2(a, b, c) {` + `\n` +
+                `    return a + b + c * 100;` + `\n` +
+                `}` + `\n` +
+                `function main(a, b, c=5) {` + `\n` +
+                `    let d = c * a * b;` + `\n` +
+                `    return [function1(a, b, c), d];` + `\n` +
+                `}`;
             const expected =
-                `add(x, y) { return x + y; }
-
-a = in1;
-b = in2;
-
-out1 = add(a, b);
-out2 = a * b;`;
-            expect(converter.convertToGenExpr(input).trim()).toBe(expected.trim());
-        });
-
-        it('should handle default parameters', () => {
-            const input = `
-                function multiply(a, b=2) { return a * b; }
-                function main(x, y=3) { return multiply(x, y); }
-            `;
-            const expected =
-                `multiply(a, b=2) { return a * b; }
-
-Param y(3);
-x = in1;
-
-out1 = multiply(x, y);`;
-            expect(converter.convertToGenExpr(input).trim()).toBe(expected.trim());
-        });
-
-        it('should remove let/var declarations', () => {
-            const input = `
-                function process(a) {
-                    let x = a * 2;
-                    var y = x + 1;
-                    return x + y;
-                }
-                function main(input) {
-                    let result = process(input);
-                    return [result, input];
-                }
-            `;
-            const expected =
-                `process(a) {
-                    x = a * 2;
-                    y = x + 1;
-                    return x + y;
-                }
-
-input = in1;
-
-result = process(input);
-out1 = result;
-out2 = input;`;
-            expect(converter.convertToGenExpr(input).trim()).toBe(expected.trim());
-        });
-
-        it('should handle complex return expressions', () => {
-            const input = `
-                function calc(x, y) { return x * y + 1; }
-                function main(a, b, c=5) {
-                    let d = c * a * b;
-                    return [calc(a, b), d, a + b + c];
-                }
-            `;
-            const expected =
-                `calc(x, y) { return x * y + 1; }
-
-Param c(5);
-a = in1;
-b = in2;
-
-d = c * a * b;
-out1 = calc(a, b);
-out2 = d;
-out3 = a + b + c;`;
-            expect(converter.convertToGenExpr(input).trim()).toBe(expected.trim());
-        });
-
-        it('should handle single return value', () => {
-            const input = `
-                function main(x) {
-                    return x * 2;
-                }
-            `;
-            const expected =
-                `x = in1;
-
-out1 = x * 2;`;
-            expect(converter.convertToGenExpr(input).trim()).toBe(expected.trim());
+                `function1(a, b, c=1) {` + `\n` +
+                `    d = a + b + c;` + `\n` +
+                `    return function2(d, a, b);` + `\n` +
+                `}` + `\n` +
+                `\n` +
+                `function2(a, b, c) {` + `\n` +
+                `    return a + b + c * 100;` + `\n` +
+                `}` + `\n` +
+                `\n` +
+                `Param c(5);` + `\n` +
+                `a = in1;` + `\n` +
+                `b = in2;` + `\n` +
+                `\n` +
+                `d = c * a * b;` + `\n` +
+                `out1 = function1(a, b, c);` + `\n` +
+                `out2 = d;`;
+            expect(converter.convertToGenExpr(input).trim()).toBe(expected);
         });
     });
 });
