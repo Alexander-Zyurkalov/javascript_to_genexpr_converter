@@ -18,30 +18,31 @@ export class JsToGenExprConverter {
 
             const replacements: Array<Replacement> = [];
 
-            walk.simple(bodyAst, {
-                ReturnStatement: (returnNode: any) => {
-                    if (returnNode.argument?.type === 'ArrayExpression') {
-                        const elements = returnNode.argument.elements.map((elem: any) =>
-                            bodyText.slice(
-                                elem.start - 'function wrapper() {'.length,
-                                elem.end - 'function wrapper() {'.length
-                            )
-                        ).join(', ');
+            let returnStatement = (returnNode: any) => {
+                if (returnNode.argument?.type === 'ArrayExpression') {
+                    const elements = returnNode.argument.elements.map((elem: any) =>
+                        bodyText.slice(
+                            elem.start - 'function wrapper() {'.length,
+                            elem.end - 'function wrapper() {'.length
+                        )
+                    ).join(', ');
 
-                        // Check if the original return statement ended with a semicolon
-                        const originalText = bodyText.slice(
-                            returnNode.start - 'function wrapper() {'.length,
-                            returnNode.end - 'function wrapper() {'.length
-                        );
-                        const hasSemicolon = originalText.endsWith(';');
+                    // Check if the original return statement ended with a semicolon
+                    const originalText = bodyText.slice(
+                        returnNode.start - 'function wrapper() {'.length,
+                        returnNode.end - 'function wrapper() {'.length
+                    );
+                    const hasSemicolon = originalText.endsWith(';');
 
-                        replacements.push({
-                            start: returnNode.start - 'function wrapper() {'.length,
-                            end: returnNode.end - 'function wrapper() {'.length,
-                            text: `return ${elements}${hasSemicolon ? ';' : ''}`
-                        });
-                    }
+                    replacements.push({
+                        start: returnNode.start - 'function wrapper() {'.length,
+                        end: returnNode.end - 'function wrapper() {'.length,
+                        text: `return ${elements}${hasSemicolon ? ';' : ''}`
+                    });
                 }
+            };
+            walk.simple(bodyAst, {
+                ReturnStatement: returnStatement
             });
 
             // Apply replacements in reverse order
