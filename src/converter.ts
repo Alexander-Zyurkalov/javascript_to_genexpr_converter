@@ -1,6 +1,12 @@
 import * as acorn from 'acorn';
 import * as walk from 'acorn-walk';
 
+type Replacement = {
+    start: number;
+    end: number;
+    text: string;
+};
+
 export class JsToGenExprConverter {
     private processReturnStatements(bodyText: string): string {
         try {
@@ -10,11 +16,7 @@ export class JsToGenExprConverter {
                 sourceType: 'script'
             });
 
-            const replacements: Array<{
-                start: number;
-                end: number;
-                text: string;
-            }> = [];
+            const replacements: Array<Replacement> = [];
 
             walk.simple(bodyAst, {
                 ReturnStatement: (returnNode: any) => {
@@ -64,11 +66,7 @@ export class JsToGenExprConverter {
             sourceType: 'module'
         });
 
-        const replacements: Array<{
-            start: number;
-            end: number;
-            text: string;
-        }> = [];
+        const replacements: Array<Replacement> = [];
 
         walk.simple(ast, {
             FunctionDeclaration: (node: any) => {
